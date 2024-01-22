@@ -2,16 +2,53 @@ from preprocess.acf import *
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.keras.losses import BinaryCrossentropy
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import Progbar
-from tensorflow.keras.models import load_model, Model
-from tensorflow.keras.layers import Input, Concatenate
+from keras.losses import BinaryCrossentropy
+from keras.optimizers import Adam
+from keras.utils import Progbar
+from keras.models import load_model, Model
+from keras.layers import Input, Concatenate
 from tensorflow import convert_to_tensor
 from math import floor, ceil
 
+#Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
+#from alpha_loss import dis_loss_alpha, gen_loss_alpha
+def dis_loss_alpha(self, fake_predicted_labels, real_predicted_labels, alpha_d = 3.0, gp = False, gp_coef = 5.0):
+    """
+    fake_predicted_labels: fake predicted values
+    real_predicted_labels: real predicted values
+    alpha_d: alpha parameter for the discriminator loss function (positive float, default 3.0)
+    gp: add a gradient penalty to the discriminator's loss function (bool, default False)
+    gp_coef: coefficient for gradient penalty term if added (float, default 5.0)
+    img: I DO NOT KNOW WHAT THIS IS. Commented out this section. Think has something to do with the real training data.
+    """
+    real_expr = tf.math.pow(real_predicted_labels, ((alpha_d-1)/alpha_d)*tf.ones_like(real_predicted_labels))
+    real_loss = tf.math.reduce_mean(real_expr)
+    fake_expr = tf.math.pow(1 - fake_predicted_labels, ((alpha_d-1)/alpha_d)*tf.ones_like(fake_predicted_labels))
+    fake_loss = tf.math.reduce_mean(fake_expr)
+    r1_penalty = 0
+    """
+    if gp:
+        gradients = tf.gradients(-tf.math.log(1 / real_predicted_labels - 1), [self.img])[0]
+        r1_penalty = tf.reduce_mean(tf.reduce_sum(tf.square(gradients), axis=[1, 2, 3]))
+    """
+    loss_expr = -(alpha_d/(alpha_d - 1))*(real_loss + fake_loss - 2.0)
 
 
+    return loss_expr + gp_coef*r1_penalty
+
+def gen_loss_alpha(self, fake_predicted_labels, alpha_g = 3.0,l1 = False):
+    """
+    fake_predicted_labels: fake predicted values
+    alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
+    l1: I DO NOT KNOW WHAT THIS IS. Set to False by default. Liekly somethign to do with L1
+    """
+    fake_expr = tf.math.pow(1 - fake_predicted_labels, ((alpha_g-1)/alpha_g)*tf.ones_like(fake_predicted_labels))
+    fake_loss = tf.math.reduce_mean(fake_expr)
+    loss_expr = (alpha_g/(alpha_g - 1))*(fake_loss - 2.0)
+    if l1:
+        equil_val = (alpha_g)/(alpha_g - 1)*(tf.math.pow(2.0, 1/alpha_g) - 2)
+        loss_expr = tf.math.abs(loss_expr - equil_val)
+    return loss_expr
 
 class GAN:
     """ Generative adverserial network class.
@@ -21,13 +58,13 @@ class GAN:
     """    
 
     def discriminator_loss(self, real_output, fake_output):
-        real_loss = self.loss(tf.ones_like(real_output), real_output)
-        fake_loss = self.loss(tf.zeros_like(fake_output), fake_output)
+        real_loss = dis_loss_alpha(tf.ones_like(real_output), real_output)
+        fake_loss = dis_loss_alpha(tf.zeros_like(fake_output), fake_output)
         total_loss = real_loss + fake_loss
         return total_loss
 
     def generator_loss(self, fake_output):
-        return self.loss(tf.ones_like(fake_output), fake_output)
+        return gen_loss_alpha(tf.ones_like(fake_output), fake_output)
 
     def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True):
         """Create a GAN instance
@@ -47,7 +84,7 @@ class GAN:
         self.generator = generator
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
 
-        self.loss = BinaryCrossentropy(from_logits=from_logits)
+        #self.loss = BinaryCrossentropy(from_logits=from_logits)
 
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)

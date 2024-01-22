@@ -7,5 +7,4 @@ jupyter
 preprocess
 tensorflow
 sklearn
-google.collab
 
