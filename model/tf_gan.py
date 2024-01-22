@@ -12,7 +12,7 @@ from math import floor, ceil
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
-def dis_loss_alpha(self, fake_predicted_labels, real_predicted_labels, alpha_d = 3.0, gp = False, gp_coef = 5.0):
+def dis_loss_alpha(fake_predicted_labels, real_predicted_labels, alpha_d = 3.0, gp = False, gp_coef = 5.0):
     """
     fake_predicted_labels: fake predicted values
     real_predicted_labels: real predicted values
@@ -36,7 +36,7 @@ def dis_loss_alpha(self, fake_predicted_labels, real_predicted_labels, alpha_d =
 
     return loss_expr + gp_coef*r1_penalty
 
-def gen_loss_alpha(self, fake_predicted_labels, alpha_g = 3.0,l1 = False):
+def gen_loss_alpha(fake_predicted_labels, alpha_g = 3.0,l1 = False):
     """
     fake_predicted_labels: fake predicted values
     alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
