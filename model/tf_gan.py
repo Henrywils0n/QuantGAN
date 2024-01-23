@@ -12,7 +12,10 @@ from math import floor, ceil
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
-def dis_loss_alpha(real_predicted_labels, fake_predicted_labels, alpha_d = 3.0, gp = False, gp_coef = 5.0):
+def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
+    alpha_d = 3.0
+    gp = False
+    gp_coef = 5.0
     """
     fake_predicted_labels: fake predicted values
     real_predicted_labels: real predicted values
@@ -37,12 +40,15 @@ def dis_loss_alpha(real_predicted_labels, fake_predicted_labels, alpha_d = 3.0, 
 
     return loss_expr + gp_coef*r1_penalty
 
-def gen_loss_alpha(fake_predicted_labels, alpha_g = 3.0,l1 = False):
+def gen_loss_alpha(fake_predicted_labels):
     """
     fake_predicted_labels: fake predicted values
     alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
     l1: I DO NOT KNOW WHAT THIS IS. Set to False by default. Liekly somethign to do with L1
     """
+    alpha_g = 3.0
+    l1 = False
+    
     fake_expr = tf.math.pow(1 - fake_predicted_labels, ((alpha_g-1)/alpha_g)*tf.ones_like(fake_predicted_labels))
     fake_loss = tf.math.reduce_mean(fake_expr)
     loss_expr = (alpha_g/(alpha_g - 1))*(fake_loss - 2.0)
@@ -60,6 +66,16 @@ class GAN:
     Code taken in part from: https://github.com/tensorflow/docs/blob/master/site/en/tutorials/generative/dcgan.ipynb
     """    
 
+    def discriminator_loss(self, real_output, fake_output):
+        real_loss = self.loss(tf.ones_like(real_output), real_output)
+        fake_loss = self.loss(tf.zeros_like(fake_output), fake_output)
+        total_loss = real_loss + fake_loss
+        return total_loss
+
+    def generator_loss(self, fake_output):
+        return self.loss(tf.ones_like(fake_output), fake_output)
+    
+    """
     def discriminator_loss(real_output, fake_output):
         #real_loss = dis_loss_alpha(tf.ones_like(real_output), real_output)
         #fake_loss = dis_loss_alpha(tf.zeros_like(fake_output), fake_output)
@@ -68,6 +84,7 @@ class GAN:
 
     def generator_loss(fake_output):
         return gen_loss_alpha(fake_output)
+    """
 
     def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True):
         """Create a GAN instance
