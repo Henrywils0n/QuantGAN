@@ -36,8 +36,6 @@ def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
     """
     loss_expr = -(alpha_d/(alpha_d - 1))*(real_loss + fake_loss - 2.0)
 
-    print("Total Loss Discriminator:" + loss_expr + gp_coef*r1_penalty)
-
     return loss_expr + gp_coef*r1_penalty
 
 def gen_loss_alpha(fake_predicted_labels):
@@ -56,7 +54,6 @@ def gen_loss_alpha(fake_predicted_labels):
         equil_val = (alpha_g)/(alpha_g - 1)*(tf.math.pow(2.0, 1/alpha_g) - 2)
         loss_expr = tf.math.abs(loss_expr - equil_val)
 
-    print("Total Loss generator:" + loss_expr)
     return loss_expr
 
 class GAN:
@@ -65,15 +62,16 @@ class GAN:
     Training code for a standard DCGAN using the Adam optimizer.
     Code taken in part from: https://github.com/tensorflow/docs/blob/master/site/en/tutorials/generative/dcgan.ipynb
     """    
-
+    
     def discriminator_loss(self, real_output, fake_output):
         real_loss = self.loss(tf.ones_like(real_output), real_output)
         fake_loss = self.loss(tf.zeros_like(fake_output), fake_output)
         total_loss = real_loss + fake_loss
         return total_loss
-
+    """
     def generator_loss(self, fake_output):
         return self.loss(tf.ones_like(fake_output), fake_output)
+    """
     
     """
     def discriminator_loss(real_output, fake_output):
@@ -81,10 +79,9 @@ class GAN:
         #fake_loss = dis_loss_alpha(tf.zeros_like(fake_output), fake_output)
         #total_loss = real_loss + fake_loss
         return dis_loss_alpha(real_output, fake_output)
-
-    def generator_loss(fake_output):
-        return gen_loss_alpha(fake_output)
     """
+    def generator_loss(self, fake_output):
+        return gen_loss_alpha(fake_output)
 
     def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True):
         """Create a GAN instance
