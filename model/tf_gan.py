@@ -13,6 +13,9 @@ from math import floor, ceil
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
 def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
+    # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
+    # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
+
     alpha_d = 6.0
     """
     fake_predicted_labels: fake predicted values
@@ -40,6 +43,9 @@ def gen_loss_alpha(fake_predicted_labels):
     alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
     l1: I DO NOT KNOW WHAT THIS IS. Set to False by default. Liekly somethign to do with L1
     """
+    # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
+    # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
+
     alpha_g = 5
 
     sigmoid_output = tf.nn.sigmoid(fake_predicted_labels)
