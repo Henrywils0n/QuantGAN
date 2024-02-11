@@ -13,9 +13,7 @@ from math import floor, ceil
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
 def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
-    alpha_d = 3.0
-    gp = False
-    gp_coef = 5.0
+    alpha_d = 6.0
     """
     fake_predicted_labels: fake predicted values
     real_predicted_labels: real predicted values
@@ -24,19 +22,17 @@ def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
     gp_coef: coefficient for gradient penalty term if added (float, default 5.0)
     img: I DO NOT KNOW WHAT THIS IS. Commented out this section. Think has something to do with the real training data.
     """
-    real_expr = tf.math.pow(real_predicted_labels, ((alpha_d-1)/alpha_d)*tf.ones_like(real_predicted_labels))
+    sigmoid_output_real = tf.nn.sigmoid(real_predicted_labels)
+    sigmoid_output_fake = tf.nn.sigmoid(fake_predicted_labels)
+
+    real_expr = tf.math.pow(sigmoid_output_real, ((alpha_d-1)/alpha_d)*tf.ones_like(sigmoid_output_real))
     real_loss = tf.math.reduce_mean(real_expr)
-    fake_expr = tf.math.pow(1 - fake_predicted_labels, ((alpha_d-1)/alpha_d)*tf.ones_like(fake_predicted_labels))
+    fake_expr = tf.math.pow(1 - sigmoid_output_fake, ((alpha_d-1)/alpha_d)*tf.ones_like(sigmoid_output_fake))
     fake_loss = tf.math.reduce_mean(fake_expr)
-    r1_penalty = 0
-    """
-    if gp:
-        gradients = tf.gradients(-tf.math.log(1 / real_predicted_labels - 1), [self.img])[0]
-        r1_penalty = tf.reduce_mean(tf.reduce_sum(tf.square(gradients), axis=[1, 2, 3]))
-    """
+ 
     loss_expr = -(alpha_d/(alpha_d - 1))*(real_loss + fake_loss - 2.0)
 
-    return loss_expr + gp_coef*r1_penalty
+    return loss_expr
 
 def gen_loss_alpha(fake_predicted_labels):
     """
@@ -44,15 +40,13 @@ def gen_loss_alpha(fake_predicted_labels):
     alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
     l1: I DO NOT KNOW WHAT THIS IS. Set to False by default. Liekly somethign to do with L1
     """
-    alpha_g = 3.0
-    l1 = False
+    alpha_g = 5
+
+    sigmoid_output = tf.nn.sigmoid(fake_predicted_labels)
     
-    fake_expr = tf.math.pow(1 - fake_predicted_labels, ((alpha_g-1)/alpha_g)*tf.ones_like(fake_predicted_labels))
+    fake_expr = tf.math.pow(1 - sigmoid_output, ((alpha_g-1)/alpha_g)*tf.ones_like(sigmoid_output))
     fake_loss = tf.math.reduce_mean(fake_expr)
     loss_expr = (alpha_g/(alpha_g - 1))*(fake_loss - 2.0)
-    if l1:
-        equil_val = (alpha_g)/(alpha_g - 1)*(tf.math.pow(2.0, 1/alpha_g) - 2)
-        loss_expr = tf.math.abs(loss_expr - equil_val)
 
     return loss_expr
 
@@ -73,13 +67,12 @@ class GAN:
         return self.loss(tf.ones_like(fake_output), fake_output)
     """
     
-    """
-    def discriminator_loss(real_output, fake_output):
+    def discriminator_loss(self, real_output, fake_output):
         #real_loss = dis_loss_alpha(tf.ones_like(real_output), real_output)
         #fake_loss = dis_loss_alpha(tf.zeros_like(fake_output), fake_output)
         #total_loss = real_loss + fake_loss
         return dis_loss_alpha(real_output, fake_output)
-    """
+    
     def generator_loss(self, fake_output):
         return gen_loss_alpha(fake_output)
 
