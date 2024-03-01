@@ -67,3 +67,17 @@ else:
 	print(f"Loading: {generator_path}trained_generator_{file_name}")
 	generator = load_model(f"{generator_path}trained_generator_{file_name}")
 	# generator = load_model(f"/temporalCN/trained/trained_generator_ShanghaiSE_daily")
+
+# Generate
+noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
+y = generator(noise).numpy().squeeze()
+
+y = (y - y.mean(axis=0))/y.std(axis=0)
+y = standardScaler2.inverse_transform(y)
+y = np.array([gaussianize.inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
+y = standardScaler1.inverse_transform(y)
+
+# some basic filtering to redue the tendency of GAN to produce extreme returns
+y = y[(y.max(axis=1) <= 2 * log_returns.max()) & (y.min(axis=1) >= 2 * log_returns.min())]
+print(y)
+# y -= y.mean()
