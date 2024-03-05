@@ -9,6 +9,7 @@ from keras.models import load_model, Model
 from keras.layers import Input, Concatenate
 from tensorflow import convert_to_tensor
 from math import floor, ceil
+from scipy.stats import wasserstein_distance, entropy
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
@@ -16,7 +17,9 @@ def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
     # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
     # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
 
-    alpha_d = 0.999
+    alpha_d = 5
+    print("Alpha_D Value: " + str(alpha_d))
+
     """
     fake_predicted_labels: fake predicted values
     real_predicted_labels: real predicted values
@@ -46,8 +49,9 @@ def gen_loss_alpha(fake_predicted_labels):
     # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
     # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
 
-    alpha_g = 2
-
+    alpha_g = 0.5
+    print("Alpha_G Value: " + str(alpha_g))
+    
     sigmoid_output = tf.nn.sigmoid(fake_predicted_labels)
     
     fake_expr = tf.math.pow(1 - sigmoid_output, ((alpha_g-1)/alpha_g)*tf.ones_like(sigmoid_output))
@@ -113,23 +117,22 @@ class GAN:
             n_batches (int): Number of update steps taken.
         """ 
         progress = Progbar(n_batches)
-        with strategy.scope():
-            for n_batch in range(n_batches):
-                # sample uniformly
-                batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]))
-                batch = data[batch_idx]
+        for n_batch in range(n_batches):
+            # sample uniformly
+            batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]))
+            batch = data[batch_idx]
 
-                self.train_step(batch, batch_size)
+            self.train_step(batch, batch_size)
 
-                if (n_batch + 1) % 500 == 0:
-                    y = self.generator(self.fixed_noise).numpy().squeeze()
-                    scores = []
-                    scores.append(np.linalg.norm(self.acf_real - acf(y.T, 250).mean(axis=1, keepdims=True)[:-1]))
-                    scores.append(np.linalg.norm(self.abs_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
-                    scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
-                    print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
+            if (n_batch + 1) % 500 == 0:
+                y = self.generator(self.fixed_noise).numpy().squeeze()
+                scores = []
+                scores.append(np.linalg.norm(self.acf_real - acf(y.T, 250).mean(axis=1, keepdims=True)[:-1]))
+                scores.append(np.linalg.norm(self.abs_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
+                scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
+                print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
 
-                progress.update(n_batch + 1)
+            progress.update(n_batch + 1)
 
     @tf.function
     def train_step(self, data, batch_size):

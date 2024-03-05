@@ -45,7 +45,6 @@ generalized_noise = convert_to_tensor(gennorm.rvs(beta=beta, size=[512, 1, data_
 gaussian_noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 
 # Training
-strategy = tf.distribute.MirroredStrategy()
 
 train = True
 
