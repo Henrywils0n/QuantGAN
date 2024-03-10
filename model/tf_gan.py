@@ -13,11 +13,10 @@ from scipy.stats import wasserstein_distance, entropy
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
-def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
+def dis_loss_alpha(real_predicted_labels, fake_predicted_labels, alpha_d):
     # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
     # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
 
-    alpha_d = 5
     print("Alpha_D Value: " + str(alpha_d))
 
     """
@@ -40,7 +39,7 @@ def dis_loss_alpha(real_predicted_labels, fake_predicted_labels):
 
     return loss_expr
 
-def gen_loss_alpha(fake_predicted_labels):
+def gen_loss_alpha(fake_predicted_labels, alpha_g):
     """
     fake_predicted_labels: fake predicted values
     alpha_g: alpha parameter for the generator loss function (positive float, default 3.0)
@@ -48,8 +47,6 @@ def gen_loss_alpha(fake_predicted_labels):
     """
     # FOR ALPHA_D <= 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/(ALPHA_D+1), infinity)
     # FOR ALPHA_D > 1, ALPHA_G MUST BE IN RANGE (ALPHA_D/2, ALPHA_D)
-
-    alpha_g = 0.5
     print("Alpha_G Value: " + str(alpha_g))
     
     sigmoid_output = tf.nn.sigmoid(fake_predicted_labels)
@@ -67,24 +64,29 @@ class GAN:
     Code taken in part from: https://github.com/tensorflow/docs/blob/master/site/en/tutorials/generative/dcgan.ipynb
     """    
     
+    """
     def discriminator_loss(self, real_output, fake_output):
         real_loss = self.loss(tf.ones_like(real_output), real_output)
         fake_loss = self.loss(tf.zeros_like(fake_output), fake_output)
         total_loss = real_loss + fake_loss
         return total_loss
-    """
+    
     def generator_loss(self, fake_output):
         return self.loss(tf.ones_like(fake_output), fake_output)
     """
     
     def discriminator_loss(self, real_output, fake_output):
-        #real_loss = dis_loss_alpha(tf.ones_like(real_output), real_output)
-        #fake_loss = dis_loss_alpha(tf.zeros_like(fake_output), fake_output)
-        #total_loss = real_loss + fake_loss
-        return dis_loss_alpha(real_output, fake_output)
+        if self.alpha_d == 1:
+            real_loss = self.loss(tf.ones_like(real_output), real_output)
+            fake_loss = self.loss(tf.zeros_like(fake_output), fake_output)
+            total_loss = real_loss + fake_loss
+            return total_loss
+        return dis_loss_alpha(real_output, fake_output, self.alpha_d)
     
     def generator_loss(self, fake_output):
-        return gen_loss_alpha(fake_output)
+        if self.alpha_g == 1:
+            return self.loss(tf.ones_like(fake_output), fake_output)
+        return gen_loss_alpha(fake_output, self.alpha_g)
 
     def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True):
         """Create a GAN instance
@@ -100,6 +102,8 @@ class GAN:
             beta_2 (float, optional): Beta2 parameter of Adam. Defaults to 0.9.
             from_logits (bool, optional): Output range of discriminator, logits imply output on the entire reals. Defaults to True.
         """
+        self.alpha_d = 1
+        self.alpha_g = 1
         self.discriminator = discriminator
         self.generator = generator
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
@@ -109,7 +113,7 @@ class GAN:
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
 
-    def train(self, data, batch_size, n_batches):
+    def train(self, data, batch_size, n_batches, real_dist):
         """training function of a GAN instance.
         Args:
             data (4d array): Training data in the following shape: (samples, timesteps, 1).
@@ -130,7 +134,16 @@ class GAN:
                 scores.append(np.linalg.norm(self.acf_real - acf(y.T, 250).mean(axis=1, keepdims=True)[:-1]))
                 scores.append(np.linalg.norm(self.abs_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
                 scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
-                print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
+                
+                wass_avg = 0
+                for i in range(len(y)):
+                    wass_dist = wasserstein_distance(y[i, :], real_dist.transpose()[0])
+                    wass_avg += wass_dist
+                wass_avg /= len(y)
+                
+                scores.append(wass_avg)
+                
+                print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}, wass_dist: {:.4f}".format(*scores))
 
             progress.update(n_batch + 1)
 
