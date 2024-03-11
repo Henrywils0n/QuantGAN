@@ -102,8 +102,8 @@ class GAN:
             beta_2 (float, optional): Beta2 parameter of Adam. Defaults to 0.9.
             from_logits (bool, optional): Output range of discriminator, logits imply output on the entire reals. Defaults to True.
         """
-        self.alpha_d = 1
-        self.alpha_g = 1
+        self.alpha_d = 100
+        self.alpha_g = 100
         self.discriminator = discriminator
         self.generator = generator
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
