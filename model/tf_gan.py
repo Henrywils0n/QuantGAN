@@ -7,6 +7,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import Progbar
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Input, Concatenate
+from scipy.stats import wasserstein_distance
 from tensorflow import convert_to_tensor
 from math import floor, ceil
 
@@ -60,6 +61,7 @@ class GAN:
             n_batches (int): Number of update steps taken.
         """ 
         progress = Progbar(n_batches)
+        train_divergence = []
 
         for n_batch in range(n_batches):
             # sample uniformly
@@ -75,8 +77,20 @@ class GAN:
               scores.append(np.linalg.norm(self.abs_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
               scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
               print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
+              
+            y = self.generator(self.fixed_noise).numpy().squeeze()
+            
+            wass_avg = 0
+            for i in range(len(y)):
+                wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
+            
+            wass_avg /= len(y)
+            
+            train_divergence.append(wass_avg)
 
             progress.update(n_batch + 1)
+            
+        return train_divergence
 
     @tf.function
     def train_step(self, data, batch_size):
