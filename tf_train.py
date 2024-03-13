@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.stats import gennorm
+from scipy.spatial import distance
 from preprocess.acf import *
 from preprocess.gaussianize import *
 
@@ -16,7 +17,7 @@ from model.tf_gan import GAN
 from model.tf_tcn import *
 
 # Data
-file_name = "SP500_daily"
+file_name = "ShanghaiSE_daily"
 file_path = "data/"+file_name+".csv"
 generator_path = ""
 
@@ -24,7 +25,7 @@ def dateparse(d):
 	return pd.Timestamp(d)
 
 data = pd.read_csv(file_path, parse_dates={'datetime': ['Date']}, date_parser=dateparse)
-df = data['Close']
+df = data['CLOSE']
 
 # Preprocess
 returns = df.shift(1)/df - 1
@@ -46,7 +47,7 @@ gaussian_noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field
 
 # Training
 
-train = True
+train = False
 
 if train:
 	gan = GAN(discriminator, generator, 2 * receptive_field_size - 1, lr_d=1e-4, lr_g=3e-5)
@@ -78,5 +79,20 @@ y = standardScaler1.inverse_transform(y)
 
 # some basic filtering to redue the tendency of GAN to produce extreme returns
 y = y[(y.max(axis=1) <= 2 * log_returns.max()) & (y.min(axis=1) >= 2 * log_returns.min())]
-print(y)
+# print(y)
 # y -= y.mean()
+
+r_data = []
+for data_point in log_returns:
+	r_data.append(data_point[0])
+real_data = np.array(r_data)
+real_histogram = np.histogram(real_data, bins=int(len(real_data)/10), density=True)
+
+divergences = []
+
+for return_path in y:
+	hist = np.histogram(return_path, bins=int(len(real_data)/10), density=True)
+	divergences.append(distance.jensenshannon(real_histogram[0], hist[0], 2.0))
+
+avg_divergence = np.mean(np.array(divergences))
+print(avg_divergence)
