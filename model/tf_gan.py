@@ -53,12 +53,13 @@ class GAN:
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
 
-    def train(self, data, batch_size, n_batches):
+    def train(self, data, batch_size, n_batches, return_divergence=False):
         """training function of a GAN instance.
         Args:
             data (4d array): Training data in the following shape: (samples, timesteps, 1).
             batch_size (int): Batch size used during training.
             n_batches (int): Number of update steps taken.
+            return_divergence (Bool): calculate wass. distance at each iteration
         """ 
         progress = Progbar(n_batches)
         train_divergence = []
@@ -78,15 +79,15 @@ class GAN:
               scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
               print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
               
-            y = self.generator(self.fixed_noise).numpy().squeeze()
             
-            wass_avg = 0
-            for i in range(len(y)):
-                wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
-            
-            wass_avg /= len(y)
-            
-            train_divergence.append(wass_avg)
+            if return_divergence:
+                y = self.generator(self.fixed_noise).numpy().squeeze()
+                wass_avg = 0
+                for i in range(len(y)):
+                    wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
+                wass_avg /= len(y)
+        
+                train_divergence.append(wass_avg)
 
             progress.update(n_batch + 1)
             
