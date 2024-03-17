@@ -17,7 +17,7 @@ from model.tf_gan import GAN
 from model.tf_tcn import *
 
 # Data
-file_name = "ShanghaiSE_daily"
+file_name = "SP500_daily"
 file_path = "data/"+file_name+".csv"
 generator_path = ""
 
@@ -25,7 +25,7 @@ def dateparse(d):
 	return pd.Timestamp(d)
 
 data = pd.read_csv(file_path, parse_dates={'datetime': ['Date']}, date_parser=dateparse)
-df = data['CLOSE']
+df = data['Close']
 
 # Preprocess
 returns = df.shift(1)/df - 1
@@ -65,13 +65,12 @@ if train:
 	#files.download(f'trained_generator_{file_name}.zip')
 else:
 	print(f"Loading: {generator_path}trained_generator_{file_name}")
-	generator = load_model(f"{generator_path}trained_generator_{file_name}")
+	generator = load_model(f"./trained_models_capstone/batchsize 1000/{generator_path}trained_generator_{file_name}_Alpha_D_5.0_Alpha_G_5.0_BatchSize_1000")
 	# generator = load_model(f"/temporalCN/trained/trained_generator_ShanghaiSE_daily")
 
 # Generate
 noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 y = generator(noise).numpy().squeeze()
-
 y = (y - y.mean(axis=0))/y.std(axis=0)
 y = standardScaler2.inverse_transform(y)
 y = np.array([gaussianize.inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
