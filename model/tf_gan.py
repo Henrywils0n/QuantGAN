@@ -102,8 +102,8 @@ class GAN:
             beta_2 (float, optional): Beta2 parameter of Adam. Defaults to 0.9.
             from_logits (bool, optional): Output range of discriminator, logits imply output on the entire reals. Defaults to True.
         """
-        self.alpha_d = 0.5
-        self.alpha_g = 0.5
+        self.alpha_d = 1
+        self.alpha_g = 1
         self.discriminator = discriminator
         self.generator = generator
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
@@ -113,7 +113,7 @@ class GAN:
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
 
-    def train(self, data, batch_size, n_batches, real_dist):
+    def train(self, data, batch_size, n_batches, real_dist, return_divergence=False):
         """training function of a GAN instance.
         Args:
             data (4d array): Training data in the following shape: (samples, timesteps, 1).
@@ -121,6 +121,8 @@ class GAN:
             n_batches (int): Number of update steps taken.
         """ 
         progress = Progbar(n_batches)
+        train_divergence = []
+
         for n_batch in range(n_batches):
             # sample uniformly
             batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]))
@@ -145,7 +147,19 @@ class GAN:
                 
                 print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}, wass_dist: {:.4f}".format(*scores))
 
+
+            if return_divergence:
+                y = self.generator(self.fixed_noise).numpy().squeeze()
+                wass_avg = 0
+                for i in range(len(y)):
+                    wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
+                wass_avg /= len(y)
+        
+                train_divergence.append(wass_avg)
+
             progress.update(n_batch + 1)
+            
+        return train_divergence
 
     @tf.function
     def train_step(self, data, batch_size):
