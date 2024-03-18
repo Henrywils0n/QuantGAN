@@ -2,6 +2,7 @@ from preprocess.acf import *
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import math
 
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
@@ -108,7 +109,6 @@ class GAN:
         
         self.discriminator = discriminator
         self.generator = generator
-        
         self.train_divergence = []
         
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
@@ -117,6 +117,9 @@ class GAN:
 
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
+        
+        self.file_name = "SP500_daily"
+        self.figure_path = "figures/"
 
     def train(self, data, batch_size, n_batches, real_dist):
         """training function of a GAN instance.
@@ -125,6 +128,8 @@ class GAN:
             batch_size (int): Batch size used during training.
             n_batches (int): Number of update steps taken.
         """ 
+        self.n_batches = n_batches
+        self.batchSize = batch_size
         progress = Progbar(n_batches)
         
         for n_batch in range(n_batches):
@@ -156,6 +161,8 @@ class GAN:
             for i in range(len(y)):
                 wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
             wass_avg /= len(y)
+            if math.isnan(wass_avg):
+                break
             self.train_divergence.append(wass_avg)
 
             progress.update(n_batch + 1)
@@ -186,11 +193,19 @@ class GAN:
             self.generator_optimizer.apply_gradients(zip(gradients_of_generator, self.generator.trainable_variables))
 
     def saveDivergencePlot(self):
-        file_name = "SP500_daily"
-        figure_path = "figures/"
         plt.plot(self.train_divergence)
         plt.title("Wasserstein Distance over Training Iterations")
         plt.xlabel('Training Iteration')
         plt.ylabel('Wasserstein Distance')
         plt.grid(axis = 'y')
-        plt.savefig(f"{figure_path}Wass_Dist_{file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batch_size}.png")
+        
+        minDiv = min(self.train_divergence)
+        minDivIndex = self.train_divergence.index(minDiv)
+        
+        text= "x={:.3f}, y={:.3f}".format(minDiv, minDivIndex)
+        bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+        arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
+        kw = dict(xycoords='data',textcoords="axes fraction",
+                arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top")
+        plt.annotate(text, xy=(minDivIndex, minDiv), xytext=(0.94,0.96), **kw)        
+        plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")

@@ -1,7 +1,8 @@
 import numpy as np
-from tensorflow.keras.layers import PReLU, Conv1D,  Add, Input, Cropping2D, Concatenate, Lambda
-from tensorflow.keras.models import Model
-from tensorflow.compat.v1.keras.layers import BatchNormalization
+import tensorflow
+from keras.layers import PReLU, Conv1D,  Add, Input, Cropping2D, Concatenate, Lambda
+from keras.models import Model
+from tensorflow.keras.layers import BatchNormalization
 from tensorflow_addons.layers import SpectralNormalization
 
 fixed_filters = 80
