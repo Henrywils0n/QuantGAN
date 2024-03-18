@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from scipy.stats import gennorm
+from scipy.spatial import distance
 from preprocess.acf import *
 from preprocess.gaussianize import *
 
@@ -46,7 +47,7 @@ gaussian_noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field
 
 # Training
 
-train = True
+train = False
 
 if train:
 	gan = GAN(discriminator, generator, 2 * receptive_field_size - 1, lr_d=1e-4, lr_g=3e-5)
@@ -64,13 +65,12 @@ if train:
 	#files.download(f'trained_generator_{file_name}.zip')
 else:
 	print(f"Loading: {generator_path}trained_generator_{file_name}")
-	generator = load_model(f"{generator_path}trained_generator_{file_name}")
+	generator = load_model(f"./trained_models_capstone/batchsize 1000/{generator_path}trained_generator_{file_name}_Alpha_D_5.0_Alpha_G_5.0_BatchSize_1000")
 	# generator = load_model(f"/temporalCN/trained/trained_generator_ShanghaiSE_daily")
 
 # Generate
 noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 y = generator(noise).numpy().squeeze()
-
 y = (y - y.mean(axis=0))/y.std(axis=0)
 y = standardScaler2.inverse_transform(y)
 y = np.array([gaussianize.inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
@@ -78,5 +78,20 @@ y = standardScaler1.inverse_transform(y)
 
 # some basic filtering to redue the tendency of GAN to produce extreme returns
 y = y[(y.max(axis=1) <= 2 * log_returns.max()) & (y.min(axis=1) >= 2 * log_returns.min())]
-print(y)
+# print(y)
 # y -= y.mean()
+
+r_data = []
+for data_point in log_returns:
+	r_data.append(data_point[0])
+real_data = np.array(r_data)
+real_histogram = np.histogram(real_data, bins=int(len(real_data)/10), density=True)
+
+divergences = []
+
+for return_path in y:
+	hist = np.histogram(return_path, bins=int(len(real_data)/10), density=True)
+	divergences.append(distance.jensenshannon(real_histogram[0], hist[0], 2.0))
+
+avg_divergence = np.mean(np.array(divergences))
+print(avg_divergence)
