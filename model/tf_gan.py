@@ -1,6 +1,7 @@
 from preprocess.acf import *
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
@@ -104,8 +105,12 @@ class GAN:
         """
         self.alpha_d = 1
         self.alpha_g = 1
+        
         self.discriminator = discriminator
         self.generator = generator
+        
+        self.train_divergence = []
+        
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
 
         self.loss = BinaryCrossentropy(from_logits=from_logits)
@@ -113,7 +118,7 @@ class GAN:
         self.generator_optimizer = Adam(lr_g, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
 
-    def train(self, data, batch_size, n_batches, real_dist, return_divergence=False):
+    def train(self, data, batch_size, n_batches, real_dist):
         """training function of a GAN instance.
         Args:
             data (4d array): Training data in the following shape: (samples, timesteps, 1).
@@ -121,8 +126,7 @@ class GAN:
             n_batches (int): Number of update steps taken.
         """ 
         progress = Progbar(n_batches)
-        train_divergence = []
-
+        
         for n_batch in range(n_batches):
             # sample uniformly
             batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]))
@@ -147,20 +151,15 @@ class GAN:
                 
                 print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}, wass_dist: {:.4f}".format(*scores))
 
-
-            if return_divergence:
-                y = self.generator(self.fixed_noise).numpy().squeeze()
-                wass_avg = 0
-                for i in range(len(y)):
-                    wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
-                wass_avg /= len(y)
-        
-                train_divergence.append(wass_avg)
+            y = self.generator(self.fixed_noise).numpy().squeeze()
+            wass_avg = 0
+            for i in range(len(y)):
+                wass_avg += wasserstein_distance(y[i,126:], data[:,0,1,].transpose()[0])
+            wass_avg /= len(y)
+            self.train_divergence.append(wass_avg)
 
             progress.update(n_batch + 1)
             
-        return train_divergence
-
     @tf.function
     def train_step(self, data, batch_size):
 
@@ -185,3 +184,13 @@ class GAN:
             gen_loss = self.generator_loss(fake_output)
             gradients_of_generator = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
             self.generator_optimizer.apply_gradients(zip(gradients_of_generator, self.generator.trainable_variables))
+
+    def saveDivergencePlot(self):
+        file_name = "SP500_daily"
+        figure_path = "figures/"
+        plt.plot(self.train_divergence)
+        plt.title("Wasserstein Distance over Training Iterations")
+        plt.xlabel('Training Iteration')
+        plt.ylabel('Wasserstein Distance')
+        plt.grid(axis = 'y')
+        plt.savefig(f"{figure_path}Wass_Dist_{file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batch_size}.png")

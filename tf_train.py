@@ -62,16 +62,17 @@ if train:
 	data = np.expand_dims(np.moveaxis(log_returns_rolled, 0,1), 1).astype('float32')
 	batch_size = 1000
 	n_batches = 3000
-	train_divergence = gan.train(data, batch_size, n_batches, log_returns, return_divergence=True)
+	gan.train(data, batch_size, n_batches, log_returns, return_divergence=True)
 	generator.save(f'{retrain_path}trained_generator_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}')
+	gan.saveDivergencePlot
 	#zip -r trained_generator_{file_name}.zip trained_generator_{file_name}/
 	#files.download(f'trained_generator_{file_name}.zip')
-	plt.plot(train_divergence)
-	plt.title("Wasserstein Distance over Training Iterations")
-	plt.xlabel('Training Iteration')
-	plt.ylabel('Wasserstein Distance')
-	plt.grid(axis = 'y')
-	plt.savefig(f"{figure_path}Wass_Dist_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}.png")
+	# plt.plot(train_divergence)
+	# plt.title("Wasserstein Distance over Training Iterations")
+	# plt.xlabel('Training Iteration')
+	# plt.ylabel('Wasserstein Distance')
+	# plt.grid(axis = 'y')
+	# plt.savefig(f"{figure_path}Wass_Dist_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}.png")
 else:
 	print(f"Loading: {generator_path}trained_generator_{file_name}")
 	generator = load_model(f"./trained_models_capstone/batchsize 1000/{generator_path}trained_generator_{file_name}_Alpha_D_5.0_Alpha_G_5.0_BatchSize_1000")
