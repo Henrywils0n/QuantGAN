@@ -60,8 +60,8 @@ if train:
 	gan.fixed_noise = convert_to_tensor(gennorm.rvs(beta=beta, size=[128, 1, data_size + receptive_field_size - 1, 3])) if use_gen_noise \
 		else normal([128, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 	data = np.expand_dims(np.moveaxis(log_returns_rolled, 0,1), 1).astype('float32')
-	batch_size = 64
-	n_batches = 10
+	batch_size = 128
+	n_batches = 125
 	gan.train(data, batch_size, n_batches, log_returns)
 	generator.save(f'{retrain_path}trained_generator_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}')
 	gan.saveDivergencePlot()
@@ -78,107 +78,107 @@ else:
 	generator = load_model(f"./trained_models_capstone/batchsize 1000/{generator_path}trained_generator_{file_name}_Alpha_D_5.0_Alpha_G_5.0_BatchSize_1000")
 	# generator = load_model(f"/temporalCN/trained/trained_generator_ShanghaiSE_daily")
 
-# Generate
-y = generator(generalized_noise).numpy().squeeze() if use_gen_noise \
-    else generator(gaussian_noise).numpy().squeeze()
+# # Generate
+# y = generator(generalized_noise).numpy().squeeze() if use_gen_noise \
+#     else generator(gaussian_noise).numpy().squeeze()
 
-y = (y - y.mean(axis=0))/y.std(axis=0)
-y = standardScaler2.inverse_transform(y)
-y = np.array([gaussianize.inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
-y = standardScaler1.inverse_transform(y)
+# y = (y - y.mean(axis=0))/y.std(axis=0)
+# y = standardScaler2.inverse_transform(y)
+# y = np.array([gaussianize.inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
+# y = standardScaler1.inverse_transform(y)
 
-# some basic filtering to redue the tendency of GAN to produce extreme returns
-# y = y[(y.max(axis=1) <= 2 * log_returns.max()) & (y.min(axis=1) >= 2 * log_returns.min())]
-y -= y.mean()
+# # some basic filtering to redue the tendency of GAN to produce extreme returns
+# # y = y[(y.max(axis=1) <= 2 * log_returns.max()) & (y.min(axis=1) >= 2 * log_returns.min())]
+# y -= y.mean()
 
-# Plot Paths
-ySum = y[:100].cumsum(axis=1).mean(axis=0)
+# # Plot Paths
+# ySum = y[:100].cumsum(axis=1).mean(axis=0)
 
-fig, ax = plt.subplots(figsize=(16,9))
-ax.plot(ySum, alpha=1, lw = 4, zorder = 2)
-ax.plot(np.cumsum(y[0:50], axis=1).T, alpha=0.65, zorder = 1)
-ax.legend(['Average'])
+# fig, ax = plt.subplots(figsize=(16,9))
+# ax.plot(ySum, alpha=1, lw = 4, zorder = 2)
+# ax.plot(np.cumsum(y[0:50], axis=1).T, alpha=0.65, zorder = 1)
+# ax.legend(['Average'])
 
-ax.set_title('Generated Log Return Paths and Their Average'.format(len(y)), fontsize=20)
-ax.set_xlabel('Days', fontsize=16)
-ax.set_ylabel('Cumalative Log Return', fontsize=16)
+# ax.set_title('Generated Log Return Paths and Their Average'.format(len(y)), fontsize=20)
+# ax.set_xlabel('Days', fontsize=16)
+# ax.set_ylabel('Cumalative Log Return', fontsize=16)
 
-# Avg Vs True
-fig, ax = plt.subplots(figsize=(16,9))
-ax.plot(np.cumsum(log_returns, axis=0))
-ax.set_title('Generated log Return Paths Compared to Real Return Path'.format(len(y)), fontsize=20)
-ax.set_xlabel('Days', fontsize=16)
-ax.set_ylabel('Cumalative Log Return', fontsize=16)
+# # Avg Vs True
+# fig, ax = plt.subplots(figsize=(16,9))
+# ax.plot(np.cumsum(log_returns, axis=0))
+# ax.set_title('Generated log Return Paths Compared to Real Return Path'.format(len(y)), fontsize=20)
+# ax.set_xlabel('Days', fontsize=16)
+# ax.set_ylabel('Cumalative Log Return', fontsize=16)
 
-#for i in [105, 150, 200]:
-#    ax.plot(y[100:i].cumsum(axis=1).mean(axis=0))
-ax.plot(ySum, alpha=1, lw = 3)
+# #for i in [105, 150, 200]:
+# #    ax.plot(y[100:i].cumsum(axis=1).mean(axis=0))
+# ax.plot(ySum, alpha=1, lw = 3)
 
-ax.legend(['Historical returns', 'Average of Synthetic Returns'])
-
-
-# Histograms
-n_bins = 50
-windows = [1, 5, 20, 100]
-
-fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(20, 10))
+# ax.legend(['Historical returns', 'Average of Synthetic Returns'])
 
 
-for i in range(len(windows)):
-    row = min(max(0, i-1), 1)
-    col = i % 2
-    real_dist = rolling_window(log_returns, windows[i], sparse = not (windows[i] == 1)).sum(axis=0).ravel()
-    fake_dist = rolling_window(y.T[1][:], windows[i], sparse = not (windows[i] == 1)).sum(axis=0).ravel()
-    axs[row, col].hist(np.array([real_dist, fake_dist], dtype='object'), bins=50, density=True)
-    axs[row,col].set_xlim(*np.quantile(fake_dist, [0.001, .999]))
+# # Histograms
+# n_bins = 50
+# windows = [1, 5, 20, 100]
+
+# fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(20, 10))
+
+
+# for i in range(len(windows)):
+#     row = min(max(0, i-1), 1)
+#     col = i % 2
+#     real_dist = rolling_window(log_returns, windows[i], sparse = not (windows[i] == 1)).sum(axis=0).ravel()
+#     fake_dist = rolling_window(y.T[1][:], windows[i], sparse = not (windows[i] == 1)).sum(axis=0).ravel()
+#     axs[row, col].hist(np.array([real_dist, fake_dist], dtype='object'), bins=50, density=True)
+#     axs[row,col].set_xlim(*np.quantile(fake_dist, [0.001, .999]))
     
-    axs[row,col].set_title('{} day return distribution'.format(windows[i]), size=16)
-    axs[row,col].yaxis.grid(True, alpha=0.5)
-    axs[row,col].set_xlabel('Cumalative log return')
-    axs[row,col].set_ylabel('Frequency')
+#     axs[row,col].set_title('{} day return distribution'.format(windows[i]), size=16)
+#     axs[row,col].yaxis.grid(True, alpha=0.5)
+#     axs[row,col].set_xlabel('Cumalative log return')
+#     axs[row,col].set_ylabel('Frequency')
 
-axs[0,0].legend(['Historical returns', 'Synthetic returns'])
+# axs[0,0].legend(['Historical returns', 'Synthetic returns'])
 
 
-# ACF scores
-fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(20, 10))
+# # ACF scores
+# fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(20, 10))
 
-axs[0,0].plot(acf(log_returns, 100))
-axs[0,0].plot(acf(y.T, 100).mean(axis=1))
-axs[0,0].set_ylim(-0.1, 0.1)
-axs[0,0].set_title('Identity log returns')
-axs[0,1].plot(acf(log_returns**2, 100))
-axs[0,1].set_ylim(-0.05, 0.5)
-axs[0,1].plot(acf(y.T**2, 100).mean(axis=1))
-axs[0,1].set_title('Squared log returns')
-axs[1,0].plot(abs(acf(log_returns, 100, le=True)))
-axs[1,0].plot(abs(acf(y.T, 100, le=True).mean(axis=1)))
-axs[1,0].set_ylim(-0.05, 0.4)
-axs[1,0].set_title('Absolute')
-axs[1,1].plot(acf(log_returns, 100, le=True))
-axs[1,1].plot(acf(y.T, 100, le=True).mean(axis=1))
-axs[1,1].set_ylim(-0.2, 0.1)
-axs[1,1].set_title('Leverage effect')
-axs[0,0].legend(['Historical returns', 'Synthetic returns'])
+# axs[0,0].plot(acf(log_returns, 100))
+# axs[0,0].plot(acf(y.T, 100).mean(axis=1))
+# axs[0,0].set_ylim(-0.1, 0.1)
+# axs[0,0].set_title('Identity log returns')
+# axs[0,1].plot(acf(log_returns**2, 100))
+# axs[0,1].set_ylim(-0.05, 0.5)
+# axs[0,1].plot(acf(y.T**2, 100).mean(axis=1))
+# axs[0,1].set_title('Squared log returns')
+# axs[1,0].plot(abs(acf(log_returns, 100, le=True)))
+# axs[1,0].plot(abs(acf(y.T, 100, le=True).mean(axis=1)))
+# axs[1,0].set_ylim(-0.05, 0.4)
+# axs[1,0].set_title('Absolute')
+# axs[1,1].plot(acf(log_returns, 100, le=True))
+# axs[1,1].plot(acf(y.T, 100, le=True).mean(axis=1))
+# axs[1,1].set_ylim(-0.2, 0.1)
+# axs[1,1].set_title('Leverage effect')
+# axs[0,0].legend(['Historical returns', 'Synthetic returns'])
 
-for ax in axs.flat: 
-  ax.grid(True)
-  ax.axhline(y=0, color='k')
-  ax.axvline(x=0, color='k')
-plt.setp(axs, xlabel='Lag (number of days)')
+# for ax in axs.flat: 
+#   ax.grid(True)
+#   ax.axhline(y=0, color='k')
+#   ax.axvline(x=0, color='k')
+# plt.setp(axs, xlabel='Lag (number of days)')
 
-# JS-Divergence
-r_data = []
-for data_point in log_returns:
-	r_data.append(data_point[0])
-real_data = np.array(r_data)
-real_histogram = np.histogram(real_data, bins=int(len(real_data)/10), density=True)
+# # JS-Divergence
+# r_data = []
+# for data_point in log_returns:
+# 	r_data.append(data_point[0])
+# real_data = np.array(r_data)
+# real_histogram = np.histogram(real_data, bins=int(len(real_data)/10), density=True)
 
-divergences = []
+# divergences = []
 
-for return_path in y:
-	hist = np.histogram(return_path, bins=int(len(real_data)/10), density=True)
-	divergences.append(distance.jensenshannon(real_histogram[0], hist[0], 2.0))
+# for return_path in y:
+# 	hist = np.histogram(return_path, bins=int(len(real_data)/10), density=True)
+# 	divergences.append(distance.jensenshannon(real_histogram[0], hist[0], 2.0))
 
-avg_divergence = np.mean(np.array(divergences))
-print(avg_divergence)
+# avg_divergence = np.mean(np.array(divergences))
+# print(avg_divergence)
