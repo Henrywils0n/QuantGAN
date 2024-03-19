@@ -126,7 +126,7 @@ class GAN:
         self.file_name = "SP500_daily"
         self.figure_path = "figures/"
 
-    def train(self, data, batch_size, n_batches):
+    def train(self, data, batch_size, n_batches, log_returns):
         """training function of a GAN instance.
         Args:
             data (4d array): Training data in the following shape: (samples, timesteps, 1).
@@ -215,7 +215,7 @@ class GAN:
         minDiv = min(self.train_divergence)
         minDivIndex = self.train_divergence.index(minDiv)
         
-        text= "x={:.0f}, y={:.3f}".format(minDivIndex, minDivIndex)
+        text= "x={:.0f}, y={:.3f}".format(minDivIndex, minDiv)
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
         arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
         kw = dict(xycoords='data',textcoords="axes fraction",

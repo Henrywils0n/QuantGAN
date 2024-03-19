@@ -36,6 +36,9 @@ standardScaler1 = StandardScaler()
 standardScaler2 = StandardScaler()
 gaussianize = Gaussianize()
 log_returns_preprocessed = standardScaler2.fit_transform(gaussianize.fit_transform(standardScaler1.fit_transform(log_returns)))
+scalers = {'standardScaler1': standardScaler1, 
+           'gaussianize': gaussianize, 
+           'standardScaler2': standardScaler2}
 receptive_field_size = 127  # p. 17
 log_returns_rolled = rolling_window(log_returns_preprocessed, receptive_field_size)
 data_size = log_returns.shape[0]
@@ -51,7 +54,7 @@ gaussian_noise = normal([512, 1, len(log_returns_preprocessed) + receptive_field
 train = True
 
 if train:
-	gan = GAN(discriminator, generator, 2 * receptive_field_size - 1, lr_d=1e-4, lr_g=3e-5)
+	gan = GAN(discriminator, generator, 2 * receptive_field_size - 1, lr_d=1e-4, lr_g=3e-5, log_returns=log_returns[:,0] ,scalers=scalers)
 	gan.alpha_d = 1
 	gan.alpha_g = 1
 	gan.acf_real = acf(log_returns_preprocessed, 250)[:-1]
@@ -61,7 +64,7 @@ if train:
 		else normal([128, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 	data = np.expand_dims(np.moveaxis(log_returns_rolled, 0,1), 1).astype('float32')
 	batch_size = 128
-	n_batches = 125
+	n_batches = 500
 	gan.train(data, batch_size, n_batches, log_returns)
 	generator.save(f'{retrain_path}trained_generator_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}')
 	gan.saveDivergencePlot()
