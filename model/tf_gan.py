@@ -90,7 +90,7 @@ class GAN:
             return self.loss(tf.ones_like(fake_output), fake_output)
         return gen_loss_alpha(fake_output, self.alpha_g)
 
-    def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True, log_returns = None,scalers: dict=None):
+    def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True, log_returns = None, log_returns_preprocessed = None, scalers: dict=None):
         """Create a GAN instance
 
         Args:
@@ -103,18 +103,20 @@ class GAN:
             beta_1 (float, optional): Beta1 parameter of Adam. Defaults to 0.
             beta_2 (float, optional): Beta2 parameter of Adam. Defaults to 0.9.
             from_logits (bool, optional): Output range of discriminator, logits imply output on the entire reals. Defaults to True.
-            train_scaler (tuple(3), optional): 3 data scalers used in data preprocessing
+            scalers (dict, optional): 3 data scalers used in data preprocessing
         """
         self.alpha_d = 1
         self.alpha_g = 1
         
         self.log_returns = log_returns
+        self.log_returns_preprocessed = log_returns_preprocessed
         self.scalers = scalers
         self.discriminator = discriminator
         self.generator = generator
         self.optimal_generator = generator
         self.optimal_generator_batch = None
-        self.train_divergence = []
+        self.train_post_divergence = []
+        self.train_pre_divergence = []
         
         self.noise_shape = [self.generator.input_shape[1], training_input, self.generator.input_shape[-1]]
 
@@ -136,7 +138,8 @@ class GAN:
         self.n_batches = n_batches
         self.batchSize = batch_size
         progress = Progbar(n_batches)
-        min_divergence = float('inf')
+        post_min_divergence = float('inf')
+        pre_min_divergence = float('inf')
         
         for n_batch in range(n_batches):
             # sample uniformly
@@ -162,21 +165,32 @@ class GAN:
                 
                 print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}, wass_dist: {:.4f}".format(*scores))
 
-            y = self.generateReturns()
+            y = self.generateReturns(postprocessed = True)
+            y_pre = self.generateReturns(postprocessed = False)
             
-            wass_avg = 0
+            post_wass_avg = 0
+            pre_wass_avg = 0
             for i in range(len(y)):
-                wass_avg += wasserstein_distance(y[i, :], self.log_returns)
-            wass_avg /= len(y)
+                post_wass_avg += wasserstein_distance(y[i, :], self.log_returns)
+                pre_wass_avg += wasserstein_distance(y_pre[i, :], self.log_returns_preprocessed)
+            post_wass_avg /= len(y)
+            pre_wass_avg /=len(y)
             
-            if math.isnan(wass_avg):
+            if math.isnan(pre_wass_avg):
                 break
             
-            if wass_avg < min_divergence:
-                self.optimal_generator = self.generator
-                self.optimal_generator_batch = n_batch
+            if post_wass_avg < post_min_divergence:
+                self.post_optimal_generator = self.generator
+                self.post_optimal_generator_batch = n_batch
+                post_min_divergence = post_wass_avg
                 
-            self.train_divergence.append(wass_avg)
+            if pre_wass_avg < pre_min_divergence:
+                self.pre_optimal_generator = self.generator
+                self.pre_optimal_generator_batch = n_batch
+                pre_min_divergence = pre_wass_avg
+                
+            self.train_post_divergence.append(post_wass_avg)
+            self.train_pre_divergence.append(pre_wass_avg)
 
             progress.update(n_batch + 1)
             
@@ -205,15 +219,20 @@ class GAN:
             gradients_of_generator = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
             self.generator_optimizer.apply_gradients(zip(gradients_of_generator, self.generator.trainable_variables))
 
-    def saveDivergencePlot(self):
-        plt.plot(self.train_divergence)
+    def saveDivergencePlot(self, preprocessed = True, postprocessed = True):
+        if postprocessed:
+            plt.plot(self.train_post_divergence)
+            minDiv = min(self.train_post_divergence)
+            minDivIndex = self.train_post_divergence.index(minDiv)
+        else:
+            plt.plot(self.train_pre_divergence)
+            minDiv = min(self.train_pre_divergence)
+            minDivIndex = self.train_pre_divergence.index(minDiv)
+        
         plt.title("Wasserstein Distance over Training Iterations")
         plt.xlabel('Training Iteration')
         plt.ylabel('Wasserstein Distance')
         plt.grid(axis = 'y')
-        
-        minDiv = min(self.train_divergence)
-        minDivIndex = self.train_divergence.index(minDiv)
         
         text= "x={:.3f}, y={:.3f}".format(minDiv, minDivIndex)
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
@@ -223,8 +242,12 @@ class GAN:
         plt.annotate(text, xy=(minDivIndex, minDiv), xytext=(0.94,0.96), **kw)        
         plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
         
-    def generateReturns(self):
+    def generateReturns(self, postprocessed = False):
         y = self.generator(self.fixed_noise).numpy().squeeze()
+
+        if not postprocessed:
+            return y
+        
         y = (y - y.mean(axis=0))/y.std(axis=0)
         y = self.scalers.get('standardScaler2').inverse_transform(y)
         y = np.array([self.scalers.get('gaussianize').inverse_transform(np.expand_dims(x, 1)) for x in y]).squeeze()
