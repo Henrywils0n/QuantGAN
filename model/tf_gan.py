@@ -11,7 +11,7 @@ from keras.models import load_model, Model
 from keras.layers import Input, Concatenate
 from tensorflow import convert_to_tensor
 from math import floor, ceil
-from scipy.stats import wasserstein_distance, entropy
+from scipy.stats import wasserstein_distance, entropy, beta
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
@@ -142,8 +142,13 @@ class GAN:
         pre_min_divergence = float('inf')
         
         for n_batch in range(n_batches):
-            # sample uniformly
-            batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]))
+            
+            #create discrete beta distribution over number of rolling windows
+            probabilities = beta.pdf(np.linspace(0.05, 0.95, data.shape[0]), 0.9, 0.9)
+            probabilities /= np.sum(probabilities)
+            
+            # Sample windows from the discrete beta disribution
+            batch_idx = np.random.choice(np.arange(data.shape[0]), size=batch_size, replace=(batch_size > data.shape[0]), p = probabilities)
             batch = data[batch_idx]
 
             self.train_step(batch, batch_size)
@@ -233,8 +238,9 @@ class GAN:
         plt.xlabel('Training Iteration')
         plt.ylabel('Wasserstein Distance')
         plt.grid(axis = 'y')
-        
+
         text= "x={:.3f}, y={:.3f}".format(minDiv, minDivIndex)
+
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
         arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
         kw = dict(xycoords='data',textcoords="axes fraction",
