@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import math
+import os, shutil
 
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
@@ -127,6 +128,14 @@ class GAN:
         
         self.file_name = "SP500_daily"
         self.figure_path = "figures/"
+        self.file_path = "data/"+self.file_name+".csv"
+        self.generator_path = ""
+        self.retrain_path = "retrained_capstone/"
+        
+        self.bestPerformance = 1
+        self.bestPerformanceBatch = -1
+
+
 
     def train(self, data, batch_size, n_batches):
         """training function of a GAN instance.
@@ -166,9 +175,9 @@ class GAN:
                 #     wass_avg += wass_dist
                 # wass_avg /= len(y)
                 
-                scores.append(self.train_divergence[-1])
+                #scores.append(self.train_divergence[-1])
                 
-                print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}, wass_dist: {:.4f}".format(*scores))
+                print("\nacf: {:.4f}, acf_abs: {:.4f}, le: {:.4f}".format(*scores))
 
             y = self.generateReturns(postprocessed = True)
             y_pre = self.generateReturns(postprocessed = False)
@@ -196,6 +205,8 @@ class GAN:
                 
             self.train_post_divergence.append(post_wass_avg)
             self.train_pre_divergence.append(pre_wass_avg)
+            
+            self.saveModel(post_wass_avg, n_batch)
 
             progress.update(n_batch + 1)
             
@@ -239,7 +250,7 @@ class GAN:
         plt.ylabel('Wasserstein Distance')
         plt.grid(axis = 'y')
 
-        text= "x={:.3f}, y={:.3f}".format(minDiv, minDivIndex)
+        text= "Epoch={:.0f}, Divergence Score={:.5f}".format(minDivIndex, minDiv)
 
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
         arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
@@ -262,4 +273,12 @@ class GAN:
         # some basic filtering to reduce the tendency of GAN to produce extreme returns
         # y -= y.mean()
         return y
+    
+    def saveModel(self, divergenceVal, batchNumber):
+        if divergenceVal < self.bestPerformance:
+            if self.bestPerformance != 1:
+                shutil.rmtree(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
+            self.bestPerformance = divergenceVal
+            self.bestPerformanceBatch = batchNumber
+            self.generator.save(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
         

@@ -40,12 +40,7 @@ result = model.fit()
 
 volatilities = result.conditional_volatility
 
-garch_returns = np.array(log_returns[0])
-
-for i in range(len(volatilities)):
-    curr_vol = volatilities[i]
-    noise = np.random.normal(0, 1)
-    garch_returns = np.append(garch_returns, curr_vol*noise)
+garch_returns = log_returns[:,0] - result.resid
 
 plt.figure(figsize=(15, 6))
 plt.plot(np.cumsum(log_returns, axis=0), label='Original Log Returns')
