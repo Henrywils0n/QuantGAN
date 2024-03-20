@@ -64,7 +64,7 @@ if train:
 		else normal([128, 1, len(log_returns_preprocessed) + receptive_field_size - 1, 3])
 	data = np.expand_dims(np.moveaxis(log_returns_rolled, 0,1), 1).astype('float32')
 	batch_size = 128
-	n_batches = 1000
+	n_batches = 3000
 	gan.train(data, batch_size, n_batches)
 	# generator.save(f'{retrain_path}trained_generator_{file_name}_Alpha_D_{gan.alpha_d}_Alpha_G_{gan.alpha_g}_BatchSize_{batch_size}')
 	gan.saveDivergencePlot()

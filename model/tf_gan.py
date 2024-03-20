@@ -200,13 +200,9 @@ class GAN:
                 
             self.train_post_divergence.append(post_wass_avg)
             self.train_pre_divergence.append(pre_wass_avg)
+            
+            self.saveModel(post_wass_avg, n_batch)
 
-            if post_wass_avg < self.bestPerformance:
-                if self.bestPerformance != 1:
-                    shutil.rmtree(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{batch_size}_Batch_{self.bestPerformanceBatch}')
-                self.bestPerformance = post_wass_avg
-                self.bestPerformanceBatch = n_batch
-                self.generator.save(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{batch_size}_Batch_{self.bestPerformanceBatch}')
             progress.update(n_batch + 1)
             
     @tf.function
@@ -271,4 +267,12 @@ class GAN:
         # some basic filtering to reduce the tendency of GAN to produce extreme returns
         # y -= y.mean()
         return y
+    
+    def saveModel(self, divergenceVal, batchNumber):
+        if divergenceVal < self.bestPerformance:
+            if self.bestPerformance != 1:
+                shutil.rmtree(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
+            self.bestPerformance = divergenceVal
+            self.bestPerformanceBatch = batchNumber
+            self.generator.save(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
         
