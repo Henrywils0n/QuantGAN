@@ -268,7 +268,10 @@ class GAN:
         arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
         kw = dict(xycoords='data',textcoords="axes fraction",
                 arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top")
-        plt.annotate(text, xy=(minDivIndex, minDiv), xytext=(0.94,0.96), **kw)        
+        
+        plt.annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw)        
+        plt.annotate(postText, xy=(postMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw)        
+        
         plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
         
     # def saveLogReturnPlot(self):
