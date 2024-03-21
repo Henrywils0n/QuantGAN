@@ -206,8 +206,6 @@ class GAN:
             self.train_post_divergence.append(post_wass_avg)
             self.train_pre_divergence.append(pre_wass_avg)
             
-            self.saveModel(post_wass_avg, n_batch)
-
             progress.update(n_batch + 1)
             
     @tf.function
@@ -235,22 +233,36 @@ class GAN:
             gradients_of_generator = gen_tape.gradient(gen_loss, self.generator.trainable_variables)
             self.generator_optimizer.apply_gradients(zip(gradients_of_generator, self.generator.trainable_variables))
 
-    def saveDivergencePlot(self, preprocessed = True, postprocessed = True):
-        if postprocessed:
-            plt.plot(self.train_post_divergence)
-            minDiv = min(self.train_post_divergence)
-            minDivIndex = self.train_post_divergence.index(minDiv)
-        else:
-            plt.plot(self.train_pre_divergence)
-            minDiv = min(self.train_pre_divergence)
-            minDivIndex = self.train_pre_divergence.index(minDiv)
-        
-        plt.title("Wasserstein Distance over Training Iterations")
-        plt.xlabel('Training Iteration')
-        plt.ylabel('Wasserstein Distance')
-        plt.grid(axis = 'y')
+    def savePlots(self):
+        self.saveDivergencePlot()
+        self.saveLogReturnPlot()
+        self.saveLogReturnVsRealPlot()
+        self.saveHistPlot()
+        self.saveACFPlot()
 
-        text= "Epoch={:.0f}, Divergence Score={:.5f}".format(minDivIndex, minDiv)
+    def saveDivergencePlot(self, preprocessed = True, postprocessed = True):
+        fig, ax = plt.subplots(nrows=1, ncols=2)
+
+        ax[0].plot(self.train_post_divergence)
+        postMinDiv = min(self.train_post_divergence)
+        postMinDivIndex = self.train_post_divergence.index(postMinDiv)
+        
+        ax[1].plot(self.train_pre_divergence)
+        preMinDiv = min(self.train_pre_divergence)
+        preMinDivIndex = self.train_pre_divergence.index(preMinDiv)
+        
+        fig.suptitle('Wasserstein Distance over Training Iterations', fontsize=20)
+        ax[0].set_xlabel('Training Iteration', fontsize=16)
+        ax[0].set_ylabel('Wasserstein Divergence', fontsize=16)
+
+        ax[1].set_xlabel('Training Iteration', fontsize=16)
+        ax[1].set_ylabel('Wasserstein Divergence', fontsize=16)
+
+        ax[0].legend(['Post Process Wass Distance'])
+        ax[1].legend(['Pre Process Wass Distance'])
+
+        preText= "Epoch={:.0f}, Divergence Score={:.5f}".format(preMinDivIndex, preMinDiv)
+        postText= "Epoch={:.0f}, Divergence Score={:.5f}".format(postMinDivIndex, postMinDiv)
 
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
         arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
@@ -259,6 +271,15 @@ class GAN:
         plt.annotate(text, xy=(minDivIndex, minDiv), xytext=(0.94,0.96), **kw)        
         plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
         
+    # def saveLogReturnPlot(self):
+        
+    # def saveLogReturnVsRealPlot(self):
+        
+    # def saveHistPlot(self):
+        
+    # def saveACFPlot(self):
+
+    
     def generateReturns(self, postprocessed = False):
         y = self.generator(self.fixed_noise).numpy().squeeze()
 
@@ -273,12 +294,3 @@ class GAN:
         # some basic filtering to reduce the tendency of GAN to produce extreme returns
         # y -= y.mean()
         return y
-    
-    def saveModel(self, divergenceVal, batchNumber):
-        if divergenceVal < self.bestPerformance:
-            if self.bestPerformance != 1:
-                shutil.rmtree(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
-            self.bestPerformance = divergenceVal
-            self.bestPerformanceBatch = batchNumber
-            self.generator.save(f'{self.retrain_path}trained_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_Batch_{self.bestPerformanceBatch}')
-        
