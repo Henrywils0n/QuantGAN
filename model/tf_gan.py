@@ -132,10 +132,6 @@ class GAN:
         self.generator_path = ""
         self.retrain_path = "retrained_capstone/"
         
-        self.bestPerformance = 1
-        self.bestPerformanceBatch = -1
-
-
 
     def train(self, data, batch_size, n_batches):
         """training function of a GAN instance.
@@ -240,7 +236,7 @@ class GAN:
         # self.saveHistPlot()
         # self.saveACFPlot()
 
-    def saveDivergencePlot(self, preprocessed = True, postprocessed = True):
+    def saveDivergencePlot(self):
         fig, ax = plt.subplots(nrows=1, ncols=2, figsize = (20,10))
 
         ax[0].plot(self.train_post_divergence)
@@ -276,7 +272,7 @@ class GAN:
         ax[0].annotate(postText, xy=(postMinDivIndex, postMinDiv), xytext=(0.94,0.96), **kw)
         ax[1].annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw1)
         
-        plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
+        plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_N_Batches_{self.n_batches}.png")
         
     # def saveLogReturnPlot(self):
         
