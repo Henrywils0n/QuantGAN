@@ -235,13 +235,13 @@ class GAN:
 
     def savePlots(self):
         self.saveDivergencePlot()
-        self.saveLogReturnPlot()
-        self.saveLogReturnVsRealPlot()
-        self.saveHistPlot()
-        self.saveACFPlot()
+        # self.saveLogReturnPlot()
+        # self.saveLogReturnVsRealPlot()
+        # self.saveHistPlot()
+        # self.saveACFPlot()
 
     def saveDivergencePlot(self, preprocessed = True, postprocessed = True):
-        fig, ax = plt.subplots(nrows=1, ncols=2)
+        fig, ax = plt.subplots(nrows=1, ncols=2, figsize = (20,10))
 
         ax[0].plot(self.train_post_divergence)
         postMinDiv = min(self.train_post_divergence)
@@ -252,25 +252,29 @@ class GAN:
         preMinDivIndex = self.train_pre_divergence.index(preMinDiv)
         
         fig.suptitle('Wasserstein Distance over Training Iterations', fontsize=20)
+        ax[0].set_title('Postprocessed Data Wasserstein Distance', fontsize=16)
         ax[0].set_xlabel('Training Iteration', fontsize=16)
         ax[0].set_ylabel('Wasserstein Divergence', fontsize=16)
 
+        ax[1].set_title('Preprocessed Data Wasserstein Distance', fontsize=16)
         ax[1].set_xlabel('Training Iteration', fontsize=16)
         ax[1].set_ylabel('Wasserstein Divergence', fontsize=16)
-
-        ax[0].legend(['Post Process Wass Distance'])
-        ax[1].legend(['Pre Process Wass Distance'])
-
+        
         preText= "Epoch={:.0f}, Divergence Score={:.5f}".format(preMinDivIndex, preMinDiv)
         postText= "Epoch={:.0f}, Divergence Score={:.5f}".format(postMinDivIndex, postMinDiv)
 
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
-        arrowprops=dict(arrowstyle="->",connectionstyle="angle,angleA=0,angleB=60")
+        arrowprops=dict(arrowstyle="->",connectionstyle="arc3, rad=0")
         kw = dict(xycoords='data',textcoords="axes fraction",
                 arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top")
         
-        plt.annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw)        
-        plt.annotate(postText, xy=(postMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw)        
+        bbox_props2 = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+        arrowprops2=dict(arrowstyle="->",connectionstyle="arc3, rad=0")
+        kw2 = dict(xycoords='data',textcoords="axes fraction",
+                arrowprops=arrowprops2, bbox=bbox_props2, ha="right", va="top")
+        
+        ax[0].annotate(postText, xy=(postMinDivIndex, postMinDiv), xytext=(0.94,0.96), **kw)
+        ax[1].annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw2)
         
         plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
         
