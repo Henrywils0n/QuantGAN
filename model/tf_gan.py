@@ -268,13 +268,13 @@ class GAN:
         kw = dict(xycoords='data',textcoords="axes fraction",
                 arrowprops=arrowprops, bbox=bbox_props, ha="right", va="top")
         
-        bbox_props2 = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
-        arrowprops2=dict(arrowstyle="->",connectionstyle="arc3, rad=0")
-        kw2 = dict(xycoords='data',textcoords="axes fraction",
-                arrowprops=arrowprops2, bbox=bbox_props2, ha="right", va="top")
+        bbox_props1 = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+        arrowprops1=dict(arrowstyle="->",connectionstyle="arc3, rad=0")
+        kw1 = dict(xycoords='data',textcoords="axes fraction",
+                arrowprops=arrowprops1, bbox=bbox_props1, ha="right", va="top")
         
         ax[0].annotate(postText, xy=(postMinDivIndex, postMinDiv), xytext=(0.94,0.96), **kw)
-        ax[1].annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw2)
+        ax[1].annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw1)
         
         plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}.png")
         
