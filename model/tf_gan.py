@@ -4,15 +4,18 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import math
 import os, shutil
+import copy
 
 from keras.losses import BinaryCrossentropy
 from keras.optimizers import Adam
 from keras.utils import Progbar
 from keras.models import load_model, Model
 from keras.layers import Input, Concatenate
+from keras.callbacks import ModelCheckpoint
 from tensorflow import convert_to_tensor
 from math import floor, ceil
 from scipy.stats import wasserstein_distance, entropy, beta
+
 
 #Alpha GAN generator and discriminator loss functions from Justin Veiner, github.com/justin-veiner/MASc
 #from alpha_loss import dis_loss_alpha, gen_loss_alpha
@@ -91,7 +94,7 @@ class GAN:
             return self.loss(tf.ones_like(fake_output), fake_output)
         return gen_loss_alpha(fake_output, self.alpha_g)
 
-    def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True, log_returns = None, log_returns_preprocessed = None, scalers: dict=None):
+    def __init__(self, discriminator, generator, training_input, lr_d=1e-4, lr_g=3e-4, epsilon=1e-8, beta_1=.0, beta_2=0.9, from_logits=True, log_returns = None, log_returns_preprocessed = None, scalers: dict=None, testing = True):
         """Create a GAN instance
 
         Args:
@@ -114,8 +117,6 @@ class GAN:
         self.scalers = scalers
         self.discriminator = discriminator
         self.generator = generator
-        self.optimal_generator = generator
-        self.optimal_generator_batch = None
         self.train_post_divergence = []
         self.train_pre_divergence = []
         
@@ -127,10 +128,15 @@ class GAN:
         self.discriminator_optimizer = Adam(lr_d, epsilon=epsilon, beta_1=beta_1, beta_2=beta_2)
         
         self.file_name = "SP500_daily"
-        self.figure_path = "figures/"
         self.file_path = "data/"+self.file_name+".csv"
         self.generator_path = ""
-        self.retrain_path = "retrained_capstone/"
+
+        if testing:
+            self.figure_path = "test_training_figures/"
+            self.model_path = "test_training_models/"
+        else:
+            self.figure_path = "figures/"
+            self.model_path = "retrained_capstone/"
         
 
     def train(self, data, batch_size, n_batches):
@@ -145,6 +151,10 @@ class GAN:
         progress = Progbar(n_batches)
         post_min_divergence = float('inf')
         pre_min_divergence = float('inf')
+
+        # Define the paths for saving checkpoints
+        # post_checkpoint_path = f'{self.model_path}trained_post_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{batch_size}_N_Batches_{n_batches}'
+        # pre_checkpoint_path = f'{self.model_path}trained_pre_generator_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{batch_size}_N_Batches_{n_batches}'
         
         for n_batch in range(n_batches):
             
@@ -162,7 +172,7 @@ class GAN:
                 y = self.generator(self.fixed_noise).numpy().squeeze()
                 scores = []
                 scores.append(np.linalg.norm(self.acf_real - acf(y.T, 250).mean(axis=1, keepdims=True)[:-1]))
-                scores.append(np.linalg.norm(self.abs_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
+                scores.append(np.linalg.norm(self.squared_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1]))
                 scores.append(np.linalg.norm(self.le_real - acf(y.T, 250, le=True).mean(axis=1, keepdims=True)[:-1]))
                 
                 # wass_avg = 0
@@ -185,24 +195,30 @@ class GAN:
                 pre_wass_avg += wasserstein_distance(y_pre[i, :], self.log_returns_preprocessed)
             post_wass_avg /= len(y)
             pre_wass_avg /=len(y)
-            
-            if math.isnan(pre_wass_avg):
+
+            if math.isnan(pre_wass_avg) or math.isnan(post_wass_avg):
                 break
             
             if post_wass_avg < post_min_divergence:
-                self.post_optimal_generator = self.generator
+                self.post_optimal_generator = copy.deepcopy(self.generator)
                 self.post_optimal_generator_batch = n_batch
                 post_min_divergence = post_wass_avg
+                #self.post_optimal_generator.save(post_checkpoint_path)
+
+
                 
             if pre_wass_avg < pre_min_divergence:
-                self.pre_optimal_generator = self.generator
+                self.pre_optimal_generator = copy.deepcopy(self.generator)
                 self.pre_optimal_generator_batch = n_batch
                 pre_min_divergence = pre_wass_avg
+                #self.pre_optimal_generator.save(pre_checkpoint_path)
+
                 
             self.train_post_divergence.append(post_wass_avg)
             self.train_pre_divergence.append(pre_wass_avg)
             
-            progress.update(n_batch + 1)
+            #progress.update(n_batch + 1)
+
             
     @tf.function
     def train_step(self, data, batch_size):
@@ -250,14 +266,14 @@ class GAN:
         fig.suptitle('Wasserstein Distance over Training Iterations', fontsize=20)
         ax[0].set_title('Postprocessed Data Wasserstein Distance', fontsize=16)
         ax[0].set_xlabel('Training Iteration', fontsize=16)
-        ax[0].set_ylabel('Wasserstein Divergence', fontsize=16)
+        ax[0].set_ylabel('Wasserstein Distance', fontsize=16)
 
         ax[1].set_title('Preprocessed Data Wasserstein Distance', fontsize=16)
         ax[1].set_xlabel('Training Iteration', fontsize=16)
-        ax[1].set_ylabel('Wasserstein Divergence', fontsize=16)
+        ax[1].set_ylabel('Wasserstein Distance', fontsize=16)
         
-        preText= "Epoch={:.0f}, Divergence Score={:.5f}".format(preMinDivIndex, preMinDiv)
-        postText= "Epoch={:.0f}, Divergence Score={:.5f}".format(postMinDivIndex, postMinDiv)
+        preText= "Epoch={:.0f}, Distance Score={:.5f}".format(preMinDivIndex, preMinDiv)
+        postText= "Epoch={:.0f}, Distance Score={:.5f}".format(postMinDivIndex, postMinDiv)
 
         bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
         arrowprops=dict(arrowstyle="->",connectionstyle="arc3, rad=0")
@@ -272,8 +288,8 @@ class GAN:
         ax[0].annotate(postText, xy=(postMinDivIndex, postMinDiv), xytext=(0.94,0.96), **kw)
         ax[1].annotate(preText, xy=(preMinDivIndex, preMinDiv), xytext=(0.94,0.96), **kw1)
         
-        plt.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_N_Batches_{self.n_batches}.png")
-        
+        fig.savefig(f"{self.figure_path}Wass_Dist_{self.file_name}_Alpha_D_{self.alpha_d}_Alpha_G_{self.alpha_g}_BatchSize_{self.batchSize}_N_Batches_{self.n_batches}.png")
+
     # def saveLogReturnPlot(self):
         
     # def saveLogReturnVsRealPlot(self):
