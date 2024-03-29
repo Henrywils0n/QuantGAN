@@ -135,7 +135,7 @@ class GAN:
             self.figure_path = "test_training_figures/"
             self.model_path = "test_training_models/"
         else:
-            self.figure_path = "figures/"
+            self.figure_path = "redo_figures/"
             self.model_path = "retrained_capstone/"
         
 
