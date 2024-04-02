@@ -37,7 +37,7 @@ from model.tf_tcn import *
 ## Set all flags before running
 
 # for testing code
-testing = False
+testing = True
 
 # whether you want to save plots
 save_plots = True
@@ -288,6 +288,7 @@ for prefix, y in returns_dict.items():
 
 		fig.savefig(f"{figure_path}{prefix}_ACF_{file_name}_Alpha_D_{alpha_d}_Alpha_G_{alpha_g}_BatchSize_{batch_size}_N_Batches_{n_batches}.png")
 		plt.close()
+
 	# ACF Scores
 	id_acf_score = np.linalg.norm(acf_real - acf(y.T, 250).mean(axis=1, keepdims=True)[:-1])
 	squared_acf_score = np.linalg.norm(squared_acf_real - acf(y.T**2, 250).mean(axis=1, keepdims=True)[:-1])

@@ -217,7 +217,7 @@ class GAN:
             self.train_post_divergence.append(post_wass_avg)
             self.train_pre_divergence.append(pre_wass_avg)
             
-            #progress.update(n_batch + 1)
+            progress.update(n_batch + 1)
 
             
     @tf.function
